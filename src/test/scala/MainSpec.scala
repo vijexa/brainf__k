@@ -47,14 +47,17 @@ class MainSpec extends AnyFlatSpec with should.Matchers {
       val invpg12 = ProgramData("", "++++++++++[>+++++++>++++++++++>+++>+<<<<->++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.")
 
       val pg21 = ProgramData("pm$", "++[>,+++.<-]+]")
+      val pg22 = ProgramData("pm$", "++>,+++.<-+")
 
       val invpg21 = ProgramData("pm$", "++>,+++.<-]+[]")
       val invpg22 = ProgramData("pm$", "++[>,+++.<-]+[")
+      val invpg23 = ProgramData("pm$", "]++[>,+++.<-]+")
 
       "ProgramChecker.checkBrackets" should "return Right(ProgramData)" in {
         checkBrackets(pg1) shouldBe Right(pg1)
         checkBrackets(pg2) shouldBe Right(pg2)
         checkBrackets(pg21) shouldBe Right(pg21)
+        checkBrackets(pg22) shouldBe Right(pg22)
       }
 
       "ProgramChecker.checkBrackets" should "return Left(ErrorMessage)" in {
@@ -63,6 +66,7 @@ class MainSpec extends AnyFlatSpec with should.Matchers {
 
         checkBrackets(invpg21) shouldBe Left(ErrorMessage("Found excess ']' at 10"))
         checkBrackets(invpg22) shouldBe Left(ErrorMessage("Found excess '[' at 13"))
+        checkBrackets(invpg23) shouldBe Left(ErrorMessage("Found excess ']' at 0"))
       }
     }
 

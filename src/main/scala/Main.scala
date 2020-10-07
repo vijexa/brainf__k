@@ -34,16 +34,20 @@ object Main {
     import Executor._
 
     def checkBrackets (program: ProgramData): Either[ErrorMessage, ProgramData] = {
+      // find last '[' bracket and first ']' bracket...
+      // using out of bounds indexes because normally those finders ignore bracket at index
       val lastOpen   = findOpen(program.code.length, program).getOrElse(program.code.length)
-      val firstClose = findClose(0, program).getOrElse(0)
+      val firstClose = findClose(-1, program).getOrElse(-1)
 
+      // ...and find them a pair. If there is no pair for any of them, return a Left
+      // if there are a pairs, return a Right
       (
         findClose(lastOpen, program), 
         findOpen(firstClose, program)
-      ) match {
+      ) match {        // check if it was found at all
         case (None, _) if(lastOpen   != program.code.length) 
           => Left(ErrorMessage(s"Found excess '[' at $lastOpen"))
-        case (_, None) if(firstClose != 0)                   
+        case (_, None) if(firstClose != -1)                   
           => Left(ErrorMessage(s"Found excess ']' at $firstClose"))
         case _ => Right(program)
       }
