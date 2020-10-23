@@ -97,7 +97,25 @@ class MainSpec extends AnyFlatSpec with should.Matchers {
         runPg(pg1Compiled) shouldBe pg1Output
         runPg(pg2Compiled) shouldBe pg2Output
       }
+
     }
 
   }
+
+  "Program" should "correctly handle edge cases" in {
+      import ProgramChecker._
+      import Compiler._
+      import Executor._
+
+      def run (pg: ProgramData) = 
+        for {
+          _         <- ProgramChecker.checkBrackets(pg)
+          compiled  <- Compiler.compile(pg).asRight
+          results   <- Executor.runPg(compiled)
+        } yield results 
+
+      run(ProgramData("abcde", ",,,.,,.")) shouldBe OutputData("ce").asRight
+
+      run(ProgramData("abc", ",,,,.")) shouldBe ErrorMessage("End of input string reached at 3!", OutputData("").some).asLeft
+    }
 }

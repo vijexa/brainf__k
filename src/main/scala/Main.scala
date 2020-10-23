@@ -245,15 +245,22 @@ object Main {
               inputPtr,
               watchdogCounter + 1
             ) 
-          case InChar(amount) => 
-            runRecursive( // TODO: fix this thing
-              memory.updated(memPtr, program.input(inputPtr)),
+          case InChar(amount) => {
+            val targetChar = inputPtr + amount - 1
+            if (targetChar >= program.input.length)
+              ErrorMessage(
+                s"End of input string reached at $targetChar!",
+                OutputData(output).some
+              ).asLeft
+            else runRecursive(
+              memory.updated(memPtr, program.input(targetChar)),
               output,
               progPtr + 1,
               memPtr,
-              inputPtr + 1,
+              inputPtr + amount,
               watchdogCounter + 1
             )
+          }
           case OpenBracket(amount, jumpTo) => 
             runRecursive( 
               memory,
