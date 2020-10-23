@@ -6,17 +6,22 @@ import scala.sys.process.processInternal
 import scala.util.chaining._
 import scala.annotation.tailrec
 
+import cats._
+import cats.implicits._
+import scala.util.chaining._
+
 object Main {
   case class ProgramData (input: String, code: String)
   case class CompiledProgram (input: String, code: Vector[Command])
 
-  case class ErrorMessage (message: String) extends AnyVal
+  case class ErrorMessage (message: String, output: Option[OutputData] = None)
   case class OutputData (data: String) extends AnyVal
 
   sealed trait Representationable {def representation: Char}
   sealed trait Amountable {def amount: Int}
   sealed trait Command extends Representationable with Amountable
   sealed trait CommandObject extends Representationable 
+  sealed trait BracketCommand {def jumpTo: Int}
   object Command {
 
     case class IncMemPtr(amount: Int) extends Command {
@@ -59,10 +64,6 @@ object Main {
     }
     object InChar extends CommandObject {
       val representation = ','
-    }
-
-    sealed trait BracketCommand {
-      def jumpTo: Int
     }
 
     case class OpenBracket(amount: Int, jumpTo: Int) extends Command with BracketCommand  {
@@ -155,28 +156,136 @@ object Main {
     }
   }
 
-  object Renderer {
-    def renderResults (output: OutputData): String = {
-      ???
-    }
+  object Executor {
+    import Command._
+
+    def runPg (program: CompiledProgram): Either[
+      ErrorMessage,
+      OutputData
+    ] = {
+      val memSize = 100_000
+      val watchdogLimit = 100_000
+
+      def createMemoryChunk(size: Int) =
+        Vector.fill[Char](size)(0)
+
+      @tailrec
+      def runRecursive (
+        memory: Vector[Char] = Vector[Char](),
+        output: String, 
+        progPtr: Int,
+        memPtr: Int,
+        inputPtr: Int,
+        watchdogCounter: Int
+      ): Either[ErrorMessage, OutputData] = {
+        if (memPtr < 0) {
+          ErrorMessage(
+            s"Segmentation fault! Memory pointer was at $memPtr",
+            OutputData(output).some
+          ).asLeft
+        } else if (watchdogCounter >= watchdogLimit) {
+          ErrorMessage(
+            "PROCESS TIME OUT. KILLED!!!",
+            OutputData(output).some
+          ).asLeft
+        } else if (progPtr >= program.code.length) {
+          OutputData(output).asRight
+        } else if (memPtr > memory.length) {
+          runRecursive(
+            memory ++ createMemoryChunk(memSize / 2),
+            output,
+            progPtr,
+            memPtr,
+            inputPtr,
+            watchdogCounter + 1
+          )
+        } else program.code(progPtr) match {
+          case IncMemPtr(amount) => 
+            runRecursive(
+              memory, 
+              output, 
+              progPtr + 1, 
+              memPtr + amount, 
+              inputPtr, 
+              watchdogCounter + 1
+            )
+          case DecMemPtr(amount) => 
+            runRecursive(
+              memory, 
+              output, 
+              progPtr + 1, 
+              memPtr - amount, 
+              inputPtr, 
+              watchdogCounter + 1
+            )
+          case IncCell(amount) => 
+            runRecursive(
+              memory.updated(memPtr, (memory(memPtr) + amount).toChar), 
+              output, 
+              progPtr + 1, 
+              memPtr, 
+              inputPtr,
+              watchdogCounter + 1
+            ) 
+          case DecCell(amount) =>
+            runRecursive(
+              memory.updated(memPtr, (memory(memPtr) - amount).toChar), 
+              output, 
+              progPtr + 1, 
+              memPtr, 
+              inputPtr,
+              watchdogCounter + 1
+            ) 
+          case OutChar(amount) =>
+            runRecursive(
+              memory,
+              output + memory(memPtr).toString * amount,
+              progPtr + 1,
+              memPtr,
+              inputPtr,
+              watchdogCounter + 1
+            ) 
+          case InChar(amount) => 
+            runRecursive( // TODO: fix this thing
+              memory.updated(memPtr, program.input(inputPtr)),
+              output,
+              progPtr + 1,
+              memPtr,
+              inputPtr + 1,
+              watchdogCounter + 1
+            )
+          case OpenBracket(amount, jumpTo) => 
+            runRecursive( 
+              memory,
+              output,
+              if (memory(memPtr) == 0) jumpTo else progPtr + 1,
+              memPtr,
+              inputPtr, 
+              watchdogCounter + 1
+            )
+          case CloseBracket(amount, jumpTo) => 
+            runRecursive( 
+              memory,
+              output,
+              if (memory(memPtr) != 0) jumpTo else progPtr + 1,
+              memPtr,
+              inputPtr,
+              watchdogCounter + 1
+            )
+        }
+      }
+
+      runRecursive(createMemoryChunk(memSize), "", 0, 0, 0, 0)
+    } 
   }
 
-  object Executor {
-
-    def runPg (
-      program: ProgramData, 
-      memory: Vector[Char] = Vector[Char](), 
-      output: String = "", 
-      progPtr: Int = 0, 
-      memPtr: Int = 0, 
-      inputPtr: Int = 0
-    ): Either[ErrorMessage, OutputData] = {
-      if (memPtr < 0) {
-        Left(ErrorMessage(s"Segmentation fault! Memory pointer was at $memPtr"))
-      } else program.code(progPtr) match {
-        case _ => ???
+  object Renderer {
+    def renderResults[A](output: Either[ErrorMessage, OutputData]): String =
+      output match {
+        case Right(out) => out.data
+        case Left(err) => 
+          s"${err.output.getOrElse(OutputData("")).data}\n${err.message}"
       }
-    } 
   }
 
   object ProgramChecker {
@@ -204,8 +313,6 @@ object Main {
   }
 
   def main (args: Array[String]) = {
-    println("started") 
-
     val N = (readLine split " " last).toIntOption getOrElse(0)
     val input = readLine
 
@@ -214,10 +321,13 @@ object Main {
     val program = ProgramData(input, code)
 
     val output = for {
-      _       <- ProgramChecker.checkBrackets(program)
-      results <- Executor.runPg(program)
-    } yield Renderer.renderResults(results)
+      _         <- ProgramChecker.checkBrackets(program)
+      compiled  <- Compiler.compile(program).asRight
+      results   <- Executor.runPg(compiled)
+    } yield results
 
-    println(output)
+    val rendered = Renderer.renderResults(output)
+
+    println(rendered)
   }
 }

@@ -7,6 +7,10 @@ import matchers._
 
 import brainfk.Main._
 
+import cats._
+import cats.implicits._
+import scala.util.chaining._
+
 class MainSpec extends AnyFlatSpec with should.Matchers {
   {
     val pg1 = ProgramData("", "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.")
@@ -71,15 +75,27 @@ class MainSpec extends AnyFlatSpec with should.Matchers {
     }
 
     {
-      import Compiler._
       import Command._
 
+      val pg1Compiled = CompiledProgram(pg1.input, Vector(IncCell(10), OpenBracket(1,12), IncMemPtr(1), IncCell(7), IncMemPtr(1), IncCell(10), IncMemPtr(1), IncCell(3), IncMemPtr(1), IncCell(1), DecMemPtr(4), DecCell(1), CloseBracket(1,1), IncMemPtr(1), IncCell(2), OutChar(1), IncMemPtr(1), IncCell(1), OutChar(1), IncCell(7), OutChar(2), IncCell(3), OutChar(1), IncMemPtr(1), IncCell(2), OutChar(1), DecMemPtr(2), IncCell(15), OutChar(1), IncMemPtr(1), OutChar(1), IncCell(3), OutChar(1), DecCell(6), OutChar(1), DecCell(8), OutChar(1), IncMemPtr(1), IncCell(1), OutChar(1)))
+      val pg2Compiled = CompiledProgram(pg2.input, Vector(IncCell(2), OpenBracket(1, 8), IncMemPtr(1), InChar(1), IncCell(3), OutChar(1), DecMemPtr(1), DecCell(1), CloseBracket(1, 1), IncCell(1), OpenBracket(1, 11), CloseBracket(1, 10)))
+
       "Compiler.compile" should "correctly compile program" in {
-        val pg1Compiled = CompiledProgram(pg1.input, Vector(IncCell(10), OpenBracket(1,12), IncMemPtr(1), IncCell(7), IncMemPtr(1), IncCell(10), IncMemPtr(1), IncCell(3), IncMemPtr(1), IncCell(1), DecMemPtr(4), DecCell(1), CloseBracket(1,1), IncMemPtr(1), IncCell(2), OutChar(1), IncMemPtr(1), IncCell(1), OutChar(1), IncCell(7), OutChar(2), IncCell(3), OutChar(1), IncMemPtr(1), IncCell(2), OutChar(1), DecMemPtr(2), IncCell(15), OutChar(1), IncMemPtr(1), OutChar(1), IncCell(3), OutChar(1), DecCell(6), OutChar(1), DecCell(8), OutChar(1), IncMemPtr(1), IncCell(1), OutChar(1)))
-        val pg2Compiled = CompiledProgram(pg2.input, Vector(IncCell(2), OpenBracket(1, 8), IncMemPtr(1), InChar(1), IncCell(3), OutChar(1), DecMemPtr(1), DecCell(1), CloseBracket(1, 1), IncCell(1), OpenBracket(1, 11), CloseBracket(1, 10)))
+        import Compiler._
+
         // "++[>,+++.<-]+[]"
         Compiler.compile(pg1) shouldBe pg1Compiled
         Compiler.compile(pg2) shouldBe pg2Compiled
+      }
+
+      "Executor.runPg" should "return correct output from program execution" in {
+        import Executor._
+
+        val pg1Output = OutputData("Hello World!").asRight
+        val pg2Output = ErrorMessage("PROCESS TIME OUT. KILLED!!!", OutputData("sp").some).asLeft
+
+        runPg(pg1Compiled) shouldBe pg1Output
+        runPg(pg2Compiled) shouldBe pg2Output
       }
     }
 
