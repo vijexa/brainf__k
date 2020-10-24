@@ -245,7 +245,7 @@ object Main {
             s"Segmentation fault! Memory pointer was at $memPtr",
             OutputData(output).some
           ).asLeft
-        } else if (watchdogCounter >= watchdogLimit) {
+        } else if (watchdogCounter > watchdogLimit) {
           ErrorMessage(
             "PROCESS TIME OUT. KILLED!!!",
             OutputData(output).some
@@ -259,7 +259,7 @@ object Main {
             progPtr,
             memPtr,
             inputPtr,
-            watchdogCounter + 1
+            watchdogCounter
           )
         } else program.code(progPtr) match {
           case IncMemPtr(amount) => 
@@ -269,7 +269,7 @@ object Main {
               progPtr + 1, 
               memPtr + amount, 
               inputPtr, 
-              watchdogCounter + 1
+              watchdogCounter + amount
             )
           case DecMemPtr(amount) => 
             runRecursive(
@@ -278,7 +278,7 @@ object Main {
               progPtr + 1, 
               memPtr - amount, 
               inputPtr, 
-              watchdogCounter + 1
+              watchdogCounter + amount
             )
           case IncCell(amount) => 
             runRecursive(
@@ -290,7 +290,7 @@ object Main {
               progPtr + 1, 
               memPtr, 
               inputPtr,
-              watchdogCounter + 1
+              watchdogCounter + amount
             ) 
           case DecCell(amount) =>
             runRecursive(
@@ -299,16 +299,18 @@ object Main {
               progPtr + 1, 
               memPtr, 
               inputPtr,
-              watchdogCounter + 1
+              watchdogCounter + amount
             ) 
           case OutChar(amount) =>
             runRecursive(
               memory,
-              output + memory(memPtr).toString * amount,
+              // because hackerrank...
+              if (watchdogCounter + amount > watchdogLimit) output 
+              else output + memory(memPtr).toString * amount,
               progPtr + 1,
               memPtr,
               inputPtr,
-              watchdogCounter + 1
+              watchdogCounter + amount
             ) 
           case InChar(amount) => {
             val targetChar = inputPtr + amount - 1
@@ -323,7 +325,7 @@ object Main {
               progPtr + 1,
               memPtr,
               inputPtr + amount,
-              watchdogCounter + 1
+              watchdogCounter + amount
             )
           }
           case OpenBracket(amount, jumpTo) => 
@@ -333,7 +335,7 @@ object Main {
               if (memory(memPtr) == 0) jumpTo else progPtr + 1,
               memPtr,
               inputPtr, 
-              watchdogCounter + 1
+              watchdogCounter + amount
             )
           case CloseBracket(amount, jumpTo) => 
             runRecursive( 
@@ -342,7 +344,7 @@ object Main {
               if (memory(memPtr) != 0) jumpTo else progPtr + 1,
               memPtr,
               inputPtr,
-              watchdogCounter + 1
+              watchdogCounter + amount
             )
         }
       }
