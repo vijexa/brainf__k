@@ -124,7 +124,7 @@ class MainSpec extends AnyFlatSpec with should.Matchers {
       for {
         _         <- ProgramChecker.checkBrackets(pg)
         compiled  <- Compiler.compile(pg).asRight
-        results   <- Executor.runPg(compiled.tap(println))
+        results   <- Executor.runPg(compiled/*.tap(println)*/)
       } yield results 
 
     def strip (str: String) = 
@@ -193,5 +193,137 @@ class MainSpec extends AnyFlatSpec with should.Matchers {
         )
       )
     ) shouldBe OutputData("d").asRight
+
+    run(
+      ProgramData("Conqueror of British Empire (CWE). All hail Idi Amin!!!",
+        strip(
+          """
+            +++++
+            [>
+                ++++++++
+                [>
+                    ++++++++++
+                    [
+                        >
+                        ++++++++++++
+                        >
+                        ++++++++++++
+                        >
+                        ++++++++++++
+                        >
+                        +++++++++++
+                        >
+                        +++++++++++
+                        <<<<<
+                        -
+                    ]
+                    >
+                    [
+                        -
+                    ]
+                    >
+                    [
+                        -
+                    ]
+                    >
+                    [
+                        -
+                    ]
+                    >
+                    [
+                        -
+                    ]
+                    >
+                    [
+                        -
+                    ]
+                    <<<<<
+                    <-
+                ]
+                <-
+            ]
+
+            ++++++++++++++
+            [
+                >
+                +++++++++++++++
+                <-
+            ]
+            >
+            [
+                -
+            ]
+            <
+            ,.,.
+          """
+        ) 
+      ) 
+    ) shouldBe OutputData("Co").asRight
+
+    run(
+      ProgramData("Conqueror of British Empire (CWE). All hail Idi Amin!!!",
+        strip(
+          """
+            +++++
+            [>
+                ++++++++
+                [>
+                    ++++++++++
+                    [
+                        >
+                        ++++++++++++
+                        >
+                        ++++++++++++
+                        >
+                        ++++++++++++
+                        >
+                        +++++++++++
+                        >
+                        +++++++++++
+                        <<<<<
+                        -
+                    ]
+                    >
+                    [
+                        -
+                    ]
+                    >
+                    [
+                        -
+                    ]
+                    >
+                    [
+                        -
+                    ]
+                    >
+                    [
+                        -
+                    ]
+                    >
+                    [
+                        -
+                    ]
+                    <<<<<
+                    <-
+                ]
+                <-
+            ]
+
+            ++++++++++++++
+            [
+                >
+                +++++++++++++++
+                <-
+            ]
+            >
+            [
+                -
+            ]
+            <
+            ,.,+.
+          """
+        ) 
+      ) 
+    ) shouldBe ErrorMessage("PROCESS TIME OUT. KILLED!!!", OutputData("C").some).asLeft
   }
 }
