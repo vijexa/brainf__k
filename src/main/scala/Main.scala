@@ -291,7 +291,7 @@ object Main {
       output match {
         case Right(out) => out.data
         case Left(err) => 
-          s"${err.output.getOrElse(OutputData("")).data}\n${err.message}"
+          s"Error! Output: ${err.output.getOrElse(OutputData("")).data}\n${err.message}"
       }
   }
 
