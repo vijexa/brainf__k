@@ -119,6 +119,17 @@ object Main {
       case CloseBracket => CloseBracket(amount, jumpTo)
     }
 
+    def addCommand (c: CommandObject, compiled: Vector[Command], amount: Int) = 
+      c match {
+        case OpenBracket | CloseBracket => compiled ++ 
+          (
+            (1 to amount) map (
+              _ => getCommand(c, 1)
+            )
+          )
+        case _ => compiled :+ getCommand(c, amount)
+      }
+
     def compile (program: ProgramData): CompiledProgram = {
 
       @tailrec
@@ -134,19 +145,70 @@ object Main {
           if (prevCommandObj.representation == c)
             compileRecursive(compiled, i + 1, currCommandObj, commandCount + 1)
           else {
-            val newCompiled = compiled :+ getCommand(prevCommandObj, commandCount + 1)
+            val newCompiled = addCommand(prevCommandObj, compiled, commandCount + 1)
             compileRecursive(newCompiled, i + 1, currCommandObj, 0)
           }
-        } else compiled :+ getCommand(prevCommandObj, commandCount + 1)
+        } else addCommand(prevCommandObj, compiled, commandCount + 1)
       }
 
       def setBracketsValue (compiled: Vector[Command]): Vector[Command] = {
-        val helperString = compiled.map(_.representation).mkString
-        compiled.zipWithIndex.map {
-          case (OpenBracket(amount, _), i)  => OpenBracket(amount, findClose(i, helperString).get)
-          case (CloseBracket(amount, _), i)  => CloseBracket(amount, findOpen(i, helperString).get)
-          case v @ _ => v._1
-        }
+
+        case class OpBracketWithIndex (c: OpenBracket, i: Int)
+        case class BracketWithIndex (c: Command with BracketCommand, i: Int)
+        @tailrec
+        def bracketsRecursive (
+          output: Vector[BracketWithIndex], 
+          i: Int, 
+          stack: List[OpBracketWithIndex],
+          depth: Int
+        ): Vector[BracketWithIndex] = 
+          if (i < compiled.length)
+            compiled(i) match {
+              case com: OpenBracket  => 
+                bracketsRecursive(
+                  output,
+                  i + 1, 
+                  OpBracketWithIndex(com, i) :: stack,
+                  depth + com.amount
+                )
+              case com: CloseBracket => {
+                val stHead = stack.head
+                bracketsRecursive(
+                  {
+                    output :+ 
+                      BracketWithIndex(stHead.c.copy(jumpTo = i), stHead.i) :+ 
+                      BracketWithIndex(com.copy(jumpTo = stHead.i), i)
+                  },
+                  i + 1, 
+                  stack.tail,
+                  depth - com.amount
+                )
+              }
+              case com @ _ => bracketsRecursive(output, i + 1, stack, depth)
+            }
+          else output
+
+        @tailrec
+        def setBracketsRecursive (
+          output: Vector[Command],
+          brackets: Vector[BracketWithIndex],
+          i: Int
+        ): Vector[Command] = 
+          if (i < brackets.length) {
+            val bracket = brackets(i)
+            setBracketsRecursive(
+              output.updated(bracket.i, bracket.c), 
+              brackets, 
+              i + 1
+            ) 
+          }
+          else output
+
+        setBracketsRecursive(
+          compiled,
+          bracketsRecursive(Vector.empty, 0, Nil, 0).reverse,
+          0
+        )
       }
 
       val firstCommand = getCommandObject(program.code.head)
