@@ -220,7 +220,10 @@ object Main {
             )
           case IncCell(amount) => 
             runRecursive(
-              memory.updated(memPtr, (memory(memPtr) + amount).toChar), 
+              memory.updated(memPtr, ((memory(memPtr) + amount) match {
+                case v if v > 255 => (v - 256)
+                case v => v
+              }).toChar), 
               output, 
               progPtr + 1, 
               memPtr, 
