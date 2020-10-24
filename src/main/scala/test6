@@ -1,0 +1,15 @@
+0 13
+$
+++++++++++ set up line feed
+>+++++ set up counter for lines
+>++++++++++++++++++++++++++++++++++++++++++++++++ go to digits
+< set pointer to line counter
+[
+    >>++++++++++ set up counter for digits
+    [
+        <.+>- print out digits from 0 to 9
+    ] 
+    <---------- reset digits
+    <<. print out lf
+    >- decrement line counter
+]
