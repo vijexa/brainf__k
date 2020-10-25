@@ -84,19 +84,6 @@ object Main {
   object Compiler {
     import Command._
 
-    private def find(str: String, c: Char): Option[Int] = str indexOf c match {
-      case -1     => None
-      case index  => Option(index)
-    }
-    def findClose(i: Int, code: String): Option[Int] = find(code drop i + 1, ']') match {
-      case None => None
-      case Some(v) => Some(i + v + 1)
-    }
-    def findOpen(i: Int, code: String): Option[Int] = find((code take i) reverse, '[') match {
-      case None => None
-      case Some(v) => Some(i - v - 1)
-    }
-
     def getCommandObject (c: Char) = c match {
       case IncMemPtr.representation     => IncMemPtr
       case DecMemPtr.representation     => DecMemPtr
@@ -159,8 +146,7 @@ object Main {
         def bracketsRecursive (
           output: Vector[BracketWithIndex], 
           i: Int, 
-          stack: List[OpBracketWithIndex],
-          depth: Int
+          stack: List[OpBracketWithIndex]
         ): Vector[BracketWithIndex] = 
           if (i < compiled.length)
             compiled(i) match {
@@ -168,8 +154,7 @@ object Main {
                 bracketsRecursive(
                   output,
                   i + 1, 
-                  OpBracketWithIndex(com, i) :: stack,
-                  depth + com.amount
+                  OpBracketWithIndex(com, i) :: stack
                 )
               case com: CloseBracket => {
                 val stHead = stack.head
@@ -180,11 +165,10 @@ object Main {
                       BracketWithIndex(com.copy(jumpTo = stHead.i), i)
                   },
                   i + 1, 
-                  stack.tail,
-                  depth - com.amount
+                  stack.tail
                 )
               }
-              case com @ _ => bracketsRecursive(output, i + 1, stack, depth)
+              case com @ _ => bracketsRecursive(output, i + 1, stack)
             }
           else output
 
@@ -206,7 +190,7 @@ object Main {
 
         setBracketsRecursive(
           compiled,
-          bracketsRecursive(Vector.empty, 0, Nil, 0).reverse,
+          bracketsRecursive(Vector.empty, 0, Nil).reverse,
           0
         )
       }
@@ -362,27 +346,19 @@ object Main {
       }
   }
 
-  object ProgramChecker {
-    import Compiler._
+  object Validator {
 
     def checkBrackets (program: ProgramData): Either[ErrorMessage, ProgramData] = {
-      // find last '[' bracket and first ']' bracket...
-      // using out of bounds indexes because normally those finders ignore bracket at index
-      val lastOpen   = findOpen(program.code.length, program.code).getOrElse(program.code.length)
-      val firstClose = findClose(-1, program.code).getOrElse(-1)
+      val depth = program.code.foldLeft(0)(
+        (depth, x) => x match {
+          case '[' => depth + 1
+          case ']' => depth - 1
+          case _   => depth
+        }
+      )
 
-      // ...and find them a pair. If there is no pair for any of them, return a Left
-      // if there are a pairs, return a Right
-      (
-        findClose(lastOpen, program.code), 
-        findOpen(firstClose, program.code)
-      ) match {        // check if it was found at all
-        case (None, _) if(lastOpen   != program.code.length) 
-          => Left(ErrorMessage(s"Found excess '[' at $lastOpen"))
-        case (_, None) if(firstClose != -1)                   
-          => Left(ErrorMessage(s"Found excess ']' at $firstClose"))
-        case _ => Right(program)
-      }
+      if (depth == 0) Right(program)
+      else ErrorMessage("Unmatched bracket detected!").asLeft
     }
   }
 
@@ -395,7 +371,7 @@ object Main {
     val program = ProgramData(input, code)
 
     val output = for {
-      _         <- ProgramChecker.checkBrackets(program)
+      _         <- Validator.checkBrackets(program)
       compiled  <- Compiler.compile(program).asRight
       results   <- Executor.runPg(compiled)
     } yield results
